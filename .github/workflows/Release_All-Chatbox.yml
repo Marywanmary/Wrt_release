@@ -1,5 +1,5 @@
 name: Release All
-run-name: Release - All-Chatbox
+run-name: Release - All-Chatz
 
 on:
   workflow_dispatch:
