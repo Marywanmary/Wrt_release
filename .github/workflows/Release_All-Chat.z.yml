@@ -1,5 +1,5 @@
-name: Release WRT
-run-name: Release - All Devices
+name: Release - All-Chatz
+run-name: Release - All-Chatz
 on:
   # 定时触发 - 北京时间每周五0点（UTC时间每周四16:00）
   schedule:
