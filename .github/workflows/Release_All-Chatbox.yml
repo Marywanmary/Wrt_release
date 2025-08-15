@@ -1,0 +1,123 @@
+name: Release All
+run-name: Release - All-Chatbox
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 16 * * 4'
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
+        model:
+          - jdcloud_ipq60xx_immwrt_Full
+          - jdcloud_ipq60xx_immwrt_Lite
+          - jdcloud_ipq60xx_libwrt_Full
+          - jdcloud_ipq60xx_libwrt_Lite
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Free disk space （释放磁盘空间）
+        uses: sbwml/actions@free-disk
+
+      - name: Build System Setup （构建系统设置）
+        run: |
+          sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          sudo -E apt -yqq install dos2unix
+          sudo -E apt -yqq install libfuse-dev
+          sudo -E apt -yqq autoremove --purge
+          sudo -E apt -yqq autoclean
+          sudo -E apt -yqq clean
+          sudo -E systemctl daemon-reload
+
+      - name: Checkout （检出代码）
+        uses: actions/checkout@v4
+
+      - name: Set Build Date and Timezone （设置时间变量）
+        run: |
+          sudo -E timedatectl set-timezone "Asia/Shanghai"
+          export BUILD_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
+          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
+          export BUILD_SRC=$(awk -F"=" '/REPO_URL/ {print $NF}' "./compilecfg/${{ matrix.model }}.ini")
+          echo "BUILD_SRC=$BUILD_SRC" >> $GITHUB_ENV
+
+      - name: Pre Clone （预克隆）
+        run: ./pre_clone_action.sh ${{ matrix.model }}
+
+      - name: Cache Dependencies （缓存依赖项）
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./action_build/.ccache
+            ./action_build/staging_dir
+          key: ${{ matrix.os }}-${{ matrix.model }}-${{ hashFiles('**/repo_flag') }}-${{ env.BUILD_DATE }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.model }}-${{ hashFiles('**/repo_flag') }}-
+
+      - name: Refresh the cache （刷新缓存）
+        run: |
+          if [ -d "./action_build/staging_dir" ]; then
+            find "./action_build/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r dir; do
+                find "$dir" -type f -exec touch {} +
+            done
+          fi
+
+      - name: Build Firmware （构建固件）
+        run: ./build.sh ${{ matrix.model }}
+
+      - name: Get Kernel Verion （获取内核版本）
+        run: |
+          # 获取内核版本
+          echo "KVER=$(find ./action_build/dl -maxdepth 1 -name "linux-[4-6]\.*" | sort -r | head -n 1 | grep -oE "[4-6]\.[0-9]{1,3}\.[0-9]{1,3}")" >> $GITHUB_ENV
+
+      - name: Delete Old Cache （删除旧缓存）
+        run: |
+          # 获取缓存列表并删除
+          gh cache list --key ${{ matrix.os }}-${{ matrix.model }}-${{ hashFiles('**/repo_flag') }}- --json key --jq '.[] | .key' | while read -r key; do
+            gh cache delete "$key"
+          done
+          # 输出缓存状态
+          echo "========cache status========"
+          echo "ccache: $(du -sh ./action_build/.ccache | cut -f 1)"
+          echo "staging: $(du -sh ./action_build/staging_dir | cut -f 1)"
+
+      - name: Machine Information （服务器信息）
+        run: |
+          echo "=============================================="
+          lscpu | grep -E "name|Core|Thread"
+          echo "=============================================="
+          df -h
+          echo "=============================================="
+
+      # - name: Package OpenWrt Firmware （打包固件）
+      #   if: ${{ matrix.model == 'n1_immwrt' }}
+      #   uses: unifreq/openwrt_packit@master
+      #   env:
+      #     OPENWRT_ARMVIRT: firmware/*.tar.gz
+      #     PACKAGE_SOC: s905d
+      #     KERNEL_VERSION_NAME: 6.6.y
+      #     WHOAMI: Mary
+
+      - name: Prepare Release Body （准备发布内容）
+        run: |
+          echo "云编译发布" > release_body_${{ matrix.model }}.txt
+          echo "设备型号: ${{ matrix.model }}" >> release_body_${{ matrix.model }}.txt
+          echo "源码：${{ env.BUILD_SRC }}" >> release_body_${{ matrix.model }}.txt
+          echo "Kernel: ${{ env.KVER }}" >> release_body_${{ matrix.model }}.txt
+          echo "WIFI密码: 12345678" >> release_body_${{ matrix.model }}.txt
+          echo "LAN地址: 192.168.111.1" >> release_body_${{ matrix.model }}.txt
+          echo "插件：" >> release_body_${{ matrix.model }}.txt
+          echo "$(grep -oP "luci-app(-[a-zA-Z0-9]{1,}){1,}" ./firmware/*.manifest | awk -F":" '{print $NF}')"  >> release_body_${{ matrix.model }}.txt
+
+      - name: Release Firmware （发布固件）
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_DATE }}_${{ matrix.model }}
+          files: ${{ matrix.model == 'n1_immwrt' && env.PACKAGED_OUTPUTPATH || './firmware' }}/*.*
+          body_path: ./release_body_${{ matrix.model }}.txt
