@@ -111,13 +111,13 @@ jobs:
 
       - name: Prepare Artifacts
         run: |
-          # 创建模型特定的目录
+         # 创建模型特定的目录
           mkdir -p ./artifacts/${{ matrix.model }}
           # 复制固件文件
           cp -r ./firmware/* ./artifacts/${{ matrix.model }}/
           # 复制最新的配置文件
-          find ./action_build -name ".config" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | xargs -I {} cp {} ./artifacts/${{ matrix.model }}/
-          find ./action_build -name ".config.buildinfo" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | xargs -I {} cp {} ./artifacts/${{ matrix.model }}/
+          find ./action_build -name ".config" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | xargs -I {} cp -r {} ./artifacts/${{ matrix.model }}/
+          find ./action_build -name ".config.buildinfo" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | xargs -I {} cp -r {} ./artifacts/${{ matrix.model }}/
           find ./action_build -name "*.manifest" -exec cp {} ./artifacts/${{ matrix.model }}/ \;
           # 保存模型信息
           echo "${{ env.BUILD_SRC }}" > ./artifacts/${{ matrix.model }}/source_info.txt
