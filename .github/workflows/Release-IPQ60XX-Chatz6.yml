@@ -1,5 +1,5 @@
 name: Release-IPQ60XX-Chatz6
-run-name: Release - ${{ matrix.model }}
+run-name: Release IPQ60XX Firmware
 
 on:
   schedule:
