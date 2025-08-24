@@ -1,7 +1,6 @@
 # File: Release-IPQ60XX-qwen6.yml
 
 name: Release IPQ60XX - Qwen6
-run-name: Scheduled Release - ${{ matrix.model }}
 
 # 定时触发：每周五北京时间 00:00 (对应 UTC 16:00)
 on:
@@ -44,7 +43,6 @@ jobs:
           sudo -E timedatectl set-timezone "Asia/Shanghai"
           export BUILD_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
-          # 使用 matrix.model 而非 inputs.model
           export BUILD_SRC=$(awk -F"=" '/REPO_URL/ {print $NF}' "./compilecfg/${{ matrix.model }}.ini")
           echo "BUILD_SRC=$BUILD_SRC" >> $GITHUB_ENV
 
