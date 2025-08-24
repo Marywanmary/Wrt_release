@@ -23,7 +23,7 @@ FEEDS_CONF="feeds.conf.default"
 GOLANG_REPO="https://github.com/sbwml/packages_lang_golang"
 GOLANG_BRANCH="25.x"
 THEME_SET="argon"
-LAN_ADDR="192.168.1.1"
+LAN_ADDR="192.168.111.1"
 
 clone_repo() {
     if [[ ! -d $BUILD_DIR ]]; then
@@ -164,7 +164,10 @@ install_small8() {
         luci-app-quickstart luci-app-istorex luci-app-cloudflarespeedtest netdata luci-app-netdata \
         lucky luci-app-lucky luci-app-openclash luci-app-homeproxy luci-app-amlogic nikki luci-app-nikki \
         tailscale luci-app-tailscale oaf open-app-filter luci-app-oaf easytier luci-app-easytier \
-        msd_lite luci-app-msd_lite cups luci-app-cupsd
+        msd_lite luci-app-msd_lite cups luci-app-cupsd \
+# ====== Mary定制包Full======
+    ./scripts/feeds install -p small8 -f luci-app-frpc luci-app-frps luci-app-openlist2 \
+        luci-app-zerotier
 }
 
 install_fullconenat() {
@@ -401,12 +404,12 @@ boot() {
     # 获取 WireGuard 接口名称
     local wg_ifname=$(wg show | awk '/interface/ {print $2}')
 
-    if [ -n "$wg_ifname" ]; then
-        # 添加新的 wireguard_watchdog 任务，每10分钟执行一次
-        echo "*/15 * * * * /usr/bin/wireguard_watchdog" >>/etc/crontabs/root
-        uci set system.@system[0].cronloglevel='9'
-        uci commit system
-        /etc/init.d/cron restart
+    # if [ -n "$wg_ifname" ]; then
+    #     # 添加新的 wireguard_watchdog 任务，每10分钟执行一次
+    #     echo "*/15 * * * * /usr/bin/wireguard_watchdog" >>/etc/crontabs/root
+    #     uci set system.@system[0].cronloglevel='9'
+    #     uci commit system
+    #     /etc/init.d/cron restart
     fi
 
     # 应用新的 crontab 配置
@@ -662,6 +665,42 @@ add_timecontrol() {
     rm -rf "$timecontrol_dir" 2>/dev/null
     git clone --depth 1 https://github.com/sirpdboy/luci-app-timecontrol.git "$timecontrol_dir"
 }
+# ====== Mary定制包Full======
+
+# 添加smaba4用户管理插件smbuser
+add_smbuser() {
+    local smbuser_dir="$BUILD_DIR/package/luci-app-smbuser"
+    # 删除旧的目录（如果存在）
+    rm -rf "$smbuser_dir" 2>/dev/null
+    git clone --depth 1 https://github.com/sbwml/luci-app-smbuser.git "$smbuser_dir"
+}
+
+# 添加测速插件netspeedtest
+add_netspeedtest() {
+    local netspeedtest_dir="$BUILD_DIR/package/luci-app-netspeedtest"
+    # 删除旧的目录（如果存在）
+    rm -rf "$netspeedtest_dir" 2>/dev/null
+    git clone --depth 1 https://github.com/sirpdboy/luci-app-netspeedtest.git "$netspeedtest_dir"
+}
+
+# 添加磁盘分区挂载插件partexp
+add_partexp() {
+    local partexp_dir="$BUILD_DIR/package/luci-app-partexp"
+    # 删除旧的目录（如果存在）
+    rm -rf "$partexp_dir" 2>/dev/null
+    git clone --depth 1 https://github.com/sirpdboy/luci-app-partexp.git "$partexp_dir"
+}
+
+# 添加定时任务插件taskplan
+add_taskplan() {
+    local taskplan_dir="$BUILD_DIR/package/luci-app-taskplan"
+    # 删除旧的目录（如果存在）
+    rm -rf "$taskplan_dir" 2>/dev/null
+    git clone --depth 1 https://github.com/sirpdboy/luci-app-taskplan.git "$taskplan_dir"
+}
+
+
+# ====== Mary定制包Full======
 
 add_gecoosac() {
     local gecoosac_dir="$BUILD_DIR/package/openwrt-gecoosac"
@@ -917,7 +956,11 @@ main() {
     update_mosdns_deconfig
     fix_quickstart
     update_oaf_deconfig
-    add_timecontrol
+    #add_timecontrol
+    add_smbuser
+    add_netspeedtest
+    add_partexp
+    add_taskplan
     add_gecoosac
     add_quickfile
     update_lucky
