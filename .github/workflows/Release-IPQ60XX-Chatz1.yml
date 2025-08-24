@@ -1,51 +1,27 @@
 name: Release-IPQ60XX-Chatz1
-run-name: Release - ${{ inputs.model }}
+run-name: Release - All Models
 
 on:
   schedule:
     # 北京时间周五0点 (UTC时间周四16点)
     - cron: '0 16 * * 4'
-  workflow_dispatch:
-    inputs:
-      model:
-        required: true
-        description: Device Model
-        type: choice
-        default: immwrt_ipq60xx_Pro
-        options:
+  workflow_dispatch:  # 保留手动触发功能，但不需要选择模型
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
+        model: 
           - immwrt_ipq60xx_Pro
           - immwrt_ipq60xx_Max
           - immwrt_ipq60xx_Ultra
           - libwrt_ipq60xx_Pro
           - libwrt_ipq60xx_Max
           - libwrt_ipq60xx_Ultra
-
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-jobs:
-  set-matrix:
-    runs-on: ubuntu-24.04
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - id: set-matrix
-        run: |
-          if [ "${{ github.event_name }}" == "schedule" ]; then
-            # 定时触发，编译所有模型
-            matrix='["immwrt_ipq60xx_Pro", "immwrt_ipq60xx_Max", "immwrt_ipq60xx_Ultra", "libwrt_ipq60xx_Pro", "libwrt_ipq60xx_Max", "libwrt_ipq60xx_Ultra"]'
-          else
-            # 手动触发，只编译选定的模型
-            matrix='["${{ github.event.inputs.model }}"]'
-          fi
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-
-  build:
-    needs: set-matrix
-    strategy:
-      matrix:
-        os: [ubuntu-24.04]
-        model: ${{ fromJson(needs.set-matrix.outputs.matrix) }}
       fail-fast: false  # 一个模型失败不影响其他模型
     runs-on: ${{ matrix.os }}
 
