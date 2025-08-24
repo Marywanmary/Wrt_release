@@ -1,5 +1,7 @@
-name: Release-IPQ60XX-qwen6
-run-name: Scheduled Release - ${{ matrix.model }} # 显示当前模型名称
+# File: Release-IPQ60XX-qwen6.yml
+
+name: Release IPQ60XX - Qwen6
+run-name: Scheduled Release - ${{ matrix.model }}
 
 # 定时触发：每周五北京时间 00:00 (对应 UTC 16:00)
 on:
@@ -120,3 +122,5 @@ jobs:
             ./firmware/*.manifest
           # 指定 release body 的文件
           body_path: ./release_body.txt
+          # Optional: Add prerelease flag if needed (e.g., for testing builds)
+          # prerelease: false
