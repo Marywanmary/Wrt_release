@@ -1,16 +1,17 @@
 name: Release-IPQ60XX-Chatz6
-run-name: Release IPQ60XX Firmware
 
 on:
   schedule:
     # 北京时间周五0点 = UTC时间周四16点
     - cron: '0 16 * * 4'
+  workflow_dispatch: # 保留手动触发选项，方便测试
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build:
+    name: Build ${{ matrix.model }}
     strategy:
       matrix:
         os: [ubuntu-24.04]
