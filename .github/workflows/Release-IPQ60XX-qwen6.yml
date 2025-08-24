@@ -122,5 +122,3 @@ jobs:
             ./firmware/*.manifest
           # 指定 release body 的文件
           body_path: ./release_body.txt
-          # Optional: Add prerelease flag if needed (e.g., for testing builds)
-          # prerelease: false
