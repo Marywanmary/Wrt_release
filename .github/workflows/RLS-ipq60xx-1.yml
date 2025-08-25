@@ -1,5 +1,5 @@
-name: RLS-ipq60xx-2
-run-name: Release - All Models2
+name: RLS-ipq60xx-1
+run-name: Release - All Models
 
 on:
   schedule:
@@ -171,6 +171,32 @@ jobs:
               mv "$file" "$NEW_FILENAME"
             fi
           done
+          
+          # 重命名manifest文件
+          for file in *.manifest; do
+            if [ -f "$file" ]; then
+              # 构建新文件名
+              NEW_FILENAME="${PREFIX}-${{ matrix.device }}-manifest-${SUFFIX}.manifest"
+              
+              # 重命名文件
+              mv "$file" "$NEW_FILENAME"
+            fi
+          done
+          
+          # 重命名配置文件
+          for file in .config .config.buildinfo; do
+            if [ -f "$file" ]; then
+              # 构建新文件名
+              NEW_FILENAME="${PREFIX}-${{ matrix.device }}-config-${SUFFIX}${file#.config}"
+              
+              # 重命名文件
+              mv "$file" "$NEW_FILENAME"
+            fi
+          done
+          
+          # 重命名信息文件
+          mv source_info.txt "${PREFIX}-${{ matrix.device }}-source-${SUFFIX}.txt"
+          mv kernel_version.txt "${PREFIX}-${{ matrix.device }}-kernel-${SUFFIX}.txt"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -205,53 +231,61 @@ jobs:
             echo "有构建失败的任务，但继续发布..."
           fi
 
+      - name: Delete Old Release
+        run: |
+          # 检查是否存在相同tag的release
+          if gh release view ipq60xx_${{ env.BUILD_DATE }}; then
+            # 删除旧的release
+            gh release delete ipq60xx_${{ env.BUILD_DATE }} --yes
+          fi
+
       - name: Prepare Release Body
         run: |
-         cat > release_body.txt << 'OUTER_EOF'
-         云编译发布
-         编译时间: $(TZ=Asia/Shanghai date)
-    
-         OUTER_EOF
-    
-         # 为每个模型添加信息
-         for model_dir in ./artifacts/*; do
-         if [ -d "$model_dir" ]; then
-         model=$(basename "$model_dir")
-         # 提取模型信息
-         MODEL_PART=$(echo "$model" | cut -d'_' -f1-3)
-         DEVICE=$(echo "$model" | cut -d'_' -f4)
-         PREFIX=$(echo "$MODEL_PART" | cut -d'_' -f1)
-         SUFFIX=$(echo "$MODEL_PART" | cut -d'_' -f3)
-        
-         # 添加模型信息到release body
-         echo "## 模型: $PREFIX-$SUFFIX-$DEVICE" >> release_body.txt
-         echo "" >> release_body.txt
-        
-         # 获取源码信息
-         if [ -f "$model_dir/source_info.txt" ]; then
-          echo "源码：$(cat $model_dir/source_info.txt)" >> release_body.txt
-         fi
-        
-         # 获取内核版本
-         if [ -f "$model_dir/kernel_version.txt" ]; then
-          echo "Kernel: $(cat $model_dir/kernel_version.txt)" >> release_body.txt
-         fi
-        
-         echo "WIFI密码: ${{ env.WIFI_PASSWORD }}" >> release_body.txt
-         echo "LAN地址: ${{ env.LAN_ADDRESS }}" >> release_body.txt
-        
-         # 获取插件列表
-         manifest_files=$(find "$model_dir" -name "*.manifest" -type f)
-         if [ -n "$manifest_files" ]; then
-          echo "插件：" >> release_body.txt
-          grep -oP "luci-app(-[a-zA-Z0-9]+)+" $manifest_files | awk -F":" '{print $NF}' | sort -u >> release_body.txt
-         else
-          echo "插件：无" >> release_body.txt
-         fi
-        
-         echo "" >> release_body.txt
-         fi
-         done
+          cat > release_body.txt << 'OUTER_EOF'
+          云编译发布
+          编译时间: $(TZ=Asia/Shanghai date)
+          
+          OUTER_EOF
+          
+          # 为每个模型添加信息
+          for model_dir in ./artifacts/*; do
+            if [ -d "$model_dir" ]; then
+              model=$(basename "$model_dir")
+              # 提取模型信息
+              MODEL_PART=$(echo "$model" | cut -d'_' -f1-3)
+              DEVICE=$(echo "$model" | cut -d'_' -f4)
+              PREFIX=$(echo "$MODEL_PART" | cut -d'_' -f1)
+              SUFFIX=$(echo "$MODEL_PART" | cut -d'_' -f3)
+              
+              # 添加模型信息到release body
+              echo "## 模型: $PREFIX-$SUFFIX-$DEVICE" >> release_body.txt
+              echo "" >> release_body.txt
+              
+              # 获取源码信息
+              if [ -f "$model_dir/${PREFIX}-${DEVICE}-source-${SUFFIX}.txt" ]; then
+                echo "源码：$(cat $model_dir/${PREFIX}-${DEVICE}-source-${SUFFIX}.txt)" >> release_body.txt
+              fi
+              
+              # 获取内核版本
+              if [ -f "$model_dir/${PREFIX}-${DEVICE}-kernel-${SUFFIX}.txt" ]; then
+                echo "Kernel: $(cat $model_dir/${PREFIX}-${DEVICE}-kernel-${SUFFIX}.txt)" >> release_body.txt
+              fi
+              
+              echo "WIFI密码: ${{ env.WIFI_PASSWORD }}" >> release_body.txt
+              echo "LAN地址: ${{ env.LAN_ADDRESS }}" >> release_body.txt
+              
+              # 获取插件列表
+              manifest_files=$(find "$model_dir" -name "*.manifest" -type f)
+              if [ -n "$manifest_files" ]; then
+                echo "插件：" >> release_body.txt
+                grep -oP "luci-app(-[a-zA-Z0-9]+)+" $manifest_files | awk -F":" '{print $NF}' | sort -u >> release_body.txt
+              else
+                echo "插件：无" >> release_body.txt
+              fi
+              
+              echo "" >> release_body.txt
+            fi
+          done
 
       - name: Release Firmware
         uses: softprops/action-gh-release@v2
