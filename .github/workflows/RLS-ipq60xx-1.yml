@@ -139,39 +139,34 @@ jobs:
           mkdir -p ./artifacts/${{ matrix.model }}_${{ matrix.device }}
           
           # 复制固件文件
-          cp -r ./firmware/* ./artifacts/${{ matrix.model }}_${{ matrix.device }}/
+          cp -r ./firmware/* ./artifacts/${{ matrix.model }}_${{ matrix.device }}/ 2>/dev/null || true
           
-          # 复制配置文件
-          find ./action_build -name ".config" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | xargs -I {} cp {} ./artifacts/${{ matrix.model }}_${{ matrix.device }}/
-          find ./action_build -name ".config.buildinfo" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | xargs -I {} cp {} ./artifacts/${{ matrix.model }}_${{ matrix.device }}/
-          find ./action_build -name "*.manifest" -exec cp {} ./artifacts/${{ matrix.model }}_${{ matrix.device }}/ \;
+          # 复制配置文件（处理文件和目录）
+          find ./action_build -name ".config" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | while read config_file; do
+            if [ -f "$config_file" ]; then
+              cp "$config_file" ./artifacts/${{ matrix.model }}_${{ matrix.device }}/
+            elif [ -d "$config_file" ]; then
+              cp -r "$config_file" ./artifacts/${{ matrix.model }}_${{ matrix.device }}/
+            fi
+          done
           
-          # 复制ipk和apk包（容错处理，即使没有也不会报错）
-          # 创建packages目录
-          mkdir -p ./artifacts/${{ matrix.model }}_${{ matrix.device }}/packages
+          find ./action_build -name ".config.buildinfo" -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2- | while read config_file; do
+            if [ -f "$config_file" ]; then
+              cp "$config_file" ./artifacts/${{ matrix.model }}_${{ matrix.device }}/
+            elif [ -d "$config_file" ]; then
+              cp -r "$config_file" ./artifacts/${{ matrix.model }}_${{ matrix.device }}/
+            fi
+          done
           
-          # 尝试复制ipk包
+          # 复制manifest文件
+          find ./action_build -name "*.manifest" -exec cp {} ./artifacts/${{ matrix.model }}_${{ matrix.device }}/ \; 2>/dev/null || true
+          
+          # 复制ipk/apk包（容错处理）
           if [ -d "./action_build/bin/targets/ipq60xx/generic/packages" ]; then
-            # 查找所有ipk文件并复制
-            find ./action_build/bin/targets/ipq60xx/generic/packages -name "*.ipk" -type f -exec cp {} ./artifacts/${{ matrix.model }}_${{ matrix.device }}/packages/ \; || true
-            echo "已复制ipk包"
-          else
-            echo "未找到ipk包目录"
-          fi
-          
-          # 尝试复制apk包
-          if [ -d "./action_build/bin/targets/ipq60xx/generic/packages" ]; then
-            # 查找所有apk文件并复制
-            find ./action_build/bin/targets/ipq60xx/generic/packages -name "*.apk" -type f -exec cp {} ./artifacts/${{ matrix.model }}_${{ matrix.device }}/packages/ \; || true
-            echo "已复制apk包"
-          else
-            echo "未找到apk包目录"
-          fi
-          
-          # 如果packages目录为空，则删除它
-          if [ -z "$(ls -A ./artifacts/${{ matrix.model }}_${{ matrix.device }}/packages)" ]; then
-            rmdir ./artifacts/${{ matrix.model }}_${{ matrix.device }}/packages
-            echo "packages目录为空，已删除"
+            mkdir -p ./artifacts/${{ matrix.model }}_${{ matrix.device }}/packages
+            # 复制所有包文件（ipk和apk）
+            find ./action_build/bin/targets/ipq60xx/generic/packages -name "*.ipk" -o -name "*.apk" | \
+              xargs -I {} cp {} ./artifacts/${{ matrix.model }}_${{ matrix.device }}/packages/ 2>/dev/null || true
           fi
           
           # 重命名固件文件
@@ -195,7 +190,7 @@ jobs:
               NEW_FILENAME="${PREFIX}-${{ matrix.device }}-${FIRMWARE_TYPE}-${SUFFIX}.bin"
               
               # 重命名文件
-              mv "$file" "$NEW_FILENAME"
+              mv "$file" "$NEW_FILENAME" 2>/dev/null || true
             fi
           done
           
@@ -206,18 +201,18 @@ jobs:
               NEW_FILENAME="${PREFIX}-${{ matrix.device }}-manifest-${SUFFIX}.manifest"
               
               # 重命名文件
-              mv "$file" "$NEW_FILENAME"
+              mv "$file" "$NEW_FILENAME" 2>/dev/null || true
             fi
           done
           
           # 重命名配置文件
           for file in .config .config.buildinfo; do
-            if [ -f "$file" ]; then
+            if [ -f "$file" ] || [ -d "$file" ]; then
               # 构建新文件名
               NEW_FILENAME="${PREFIX}-${{ matrix.device }}-config-${SUFFIX}${file#.config}"
               
               # 重命名文件
-              mv "$file" "$NEW_FILENAME"
+              mv "$file" "$NEW_FILENAME" 2>/dev/null || true
             fi
           done
 
